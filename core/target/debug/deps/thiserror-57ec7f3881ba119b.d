@@ -1,0 +1,12 @@
+/home/augustineonuora/Dapps-Empty/2026/Nov2026/safe-prompt/core/target/debug/deps/thiserror-57ec7f3881ba119b.d: /home/augustineonuora/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.18/src/lib.rs /home/augustineonuora/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.18/src/aserror.rs /home/augustineonuora/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.18/src/display.rs /home/augustineonuora/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.18/src/var.rs /home/augustineonuora/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.18/src/private.rs /home/augustineonuora/Dapps-Empty/2026/Nov2026/safe-prompt/core/target/debug/build/thiserror-4edeecf0dd90c32f/out/private.rs
+
+/home/augustineonuora/Dapps-Empty/2026/Nov2026/safe-prompt/core/target/debug/deps/libthiserror-57ec7f3881ba119b.rmeta: /home/augustineonuora/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.18/src/lib.rs /home/augustineonuora/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.18/src/aserror.rs /home/augustineonuora/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.18/src/display.rs /home/augustineonuora/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.18/src/var.rs /home/augustineonuora/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.18/src/private.rs /home/augustineonuora/Dapps-Empty/2026/Nov2026/safe-prompt/core/target/debug/build/thiserror-4edeecf0dd90c32f/out/private.rs
+
+/home/augustineonuora/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.18/src/lib.rs:
+/home/augustineonuora/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.18/src/aserror.rs:
+/home/augustineonuora/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.18/src/display.rs:
+/home/augustineonuora/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.18/src/var.rs:
+/home/augustineonuora/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/thiserror-2.0.18/src/private.rs:
+/home/augustineonuora/Dapps-Empty/2026/Nov2026/safe-prompt/core/target/debug/build/thiserror-4edeecf0dd90c32f/out/private.rs:
+
+# env-dep:OUT_DIR=/home/augustineonuora/Dapps-Empty/2026/Nov2026/safe-prompt/core/target/debug/build/thiserror-4edeecf0dd90c32f/out

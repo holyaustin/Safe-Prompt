@@ -1,0 +1,32 @@
+[package]
+name = "safe_prompt_core"
+version = "0.1.0"
+edition = "2021"
+description = "Post-quantum cryptographic core for Safe Prompt: ML-KEM-1024 envelopes with zeroized memory protection"
+license = "MIT"
+repository = "https://github.com/qorechain/safe-prompt"
+
+[lib]
+name = "safe_prompt_core"
+crate-type = ["cdylib", "rlib"]
+
+[features]
+default = []
+# Enable this when building the Python extension module via maturin:
+#   maturin develop --features extension-module
+extension-module = ["pyo3/extension-module"]
+
+[dependencies]
+qorechain-qoreseal = "0.1.0"
+qorechain-pqc = "0.2.3"
+zeroize = "1"
+rand = "0.8"
+rand_core = "0.6"
+base64 = { version = "=0.22.1" }
+pyo3 = { version = "0.22", features = [] }
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+panic = "abort"

@@ -1,0 +1,27 @@
+[build-system]
+requires = ["maturin>=1.0,<2.0"]
+build-backend = "maturin"
+
+[project]
+name = "safe-prompt"
+version = "0.1.0"
+description = "Post-Quantum Encrypted LLM Prompt & Secret Sharing for QoreChain"
+requires-python = ">=3.10"
+dependencies = [
+    "textual>=0.8.0,<1.0",
+    "textual-web>=0.8.0",
+    "fastapi>=0.100.0",
+    "httpx>=0.25.0",
+    "qorechain-sdk>=0.15.0",
+    "qorechain-qoreseal>=0.1.0",
+    "pydantic>=2.5.0",
+    "pyyaml>=6.0.1",
+]
+
+[project.scripts]
+safe-prompt-cli = "safe_prompt.cli:app"
+safe-prompt-serve = "safe_prompt.gateway:main"
+safe-prompt-serve-web = "safe_prompt.cli:web_mode"
+
+[tool.maturin]
+features = ["pyo3/extensions"]

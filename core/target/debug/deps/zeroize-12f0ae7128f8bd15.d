@@ -1,0 +1,10 @@
+/home/augustineonuora/Dapps-Empty/2026/Nov2026/safe-prompt/core/target/debug/deps/zeroize-12f0ae7128f8bd15.d: /home/augustineonuora/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/zeroize-1.9.2/src/lib.rs /home/augustineonuora/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/zeroize-1.9.2/src/x86.rs /home/augustineonuora/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/zeroize-1.9.2/src/barrier.rs /home/augustineonuora/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/zeroize-1.9.2/src/bulk.rs /home/augustineonuora/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/zeroize-1.9.2/src/stack.rs /home/augustineonuora/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/zeroize-1.9.2/src/../README.md
+
+/home/augustineonuora/Dapps-Empty/2026/Nov2026/safe-prompt/core/target/debug/deps/libzeroize-12f0ae7128f8bd15.rmeta: /home/augustineonuora/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/zeroize-1.9.2/src/lib.rs /home/augustineonuora/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/zeroize-1.9.2/src/x86.rs /home/augustineonuora/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/zeroize-1.9.2/src/barrier.rs /home/augustineonuora/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/zeroize-1.9.2/src/bulk.rs /home/augustineonuora/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/zeroize-1.9.2/src/stack.rs /home/augustineonuora/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/zeroize-1.9.2/src/../README.md
+
+/home/augustineonuora/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/zeroize-1.9.2/src/lib.rs:
+/home/augustineonuora/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/zeroize-1.9.2/src/x86.rs:
+/home/augustineonuora/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/zeroize-1.9.2/src/barrier.rs:
+/home/augustineonuora/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/zeroize-1.9.2/src/bulk.rs:
+/home/augustineonuora/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/zeroize-1.9.2/src/stack.rs:
+/home/augustineonuora/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/zeroize-1.9.2/src/../README.md:
