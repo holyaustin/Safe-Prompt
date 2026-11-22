@@ -11,6 +11,9 @@ import { EvmClient } from "@qorechain/evm";
 const DIANA_CHAIN_ID = 9800;
 const DIANA_RPC_URL = process.env.QORECHAIN_DIANA_RPC_URL || "https://diana-rpc.qorechain.io";
 
+// SafePromptAnchor contract address on Diana testnet — set QORECHAIN_ANCHOR_CONTRACT_ADDRESS in .env
+export const ANCHOR_ADDRESS = process.env.QORECHAIN_ANCHOR_CONTRACT_ADDRESS || "";
+
 export interface KeyRegistration {
   address: string;          // qor1... address
   mlkem_public_key: string; // base64url
@@ -83,6 +86,7 @@ export class SafePromptOnChain {
 
   /**
    * Anchor an envelope commitment to the on-chain SafePromptAnchor contract.
+   * Uses ANCHOR_ADDRESS (from QORECHAIN_ANCHOR_CONTRACT_ADDRESS) by default.
    */
   async anchorEnvelope(
     commitment: string,
@@ -90,8 +94,13 @@ export class SafePromptOnChain {
     sender: string,
     recipients: string[],
     wallet: ethers.Wallet,
-    anchorAddress: string
+    anchorAddress: string = ANCHOR_ADDRESS
   ): Promise<string> {
+    if (!anchorAddress) {
+      throw new Error(
+        "ANCHOR_ADDRESS not set — set QORECHAIN_ANCHOR_CONTRACT_ADDRESS in .env after deploying"
+      );
+    }
     const anchor = new ethers.Contract(
       anchorAddress,
       [

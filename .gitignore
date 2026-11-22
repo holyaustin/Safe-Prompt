@@ -21,8 +21,9 @@ env/
 ENV/
 
 # Rust
-/target/
+/core/target/
 Cargo.lock
+/core/Cargo.lock
 
 # Node
 node_modules/

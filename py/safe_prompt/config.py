@@ -22,6 +22,10 @@ class Settings(BaseModel):
     kem_registry_address: Optional[str] = Field(default=None)
     ml_dsa_registry_address: Optional[str] = Field(default=None)
 
+    # SafePromptAnchor contract (Diana testnet) — set QORECHAIN_ANCHOR_CONTRACT_ADDRESS in .env
+    # after deploying contracts/scripts/deploy.ts
+    anchor_contract_address: Optional[str] = Field(default=None)
+
     # Local gateway
     gateway_host: str = Field(default="127.0.0.1")
     gateway_port: int = Field(default=8787)

@@ -51,8 +51,8 @@ test-rust: ## Run Rust unit tests
 test-ts: ## Run TypeScript (Hardhat) tests
 	cd contracts && npx hardhat test
 
-test-sol: ## Compile Solidity
-	cd contracts && npx hardhat compile
+test-sol: ## Compile + test Solidity contracts
+	cd contracts && npx hardhat compile && npx hardhat test
 
 # ------------------------------------------------------------------ keys
 register-keys: ## Register PQC keys on-chain for current address
@@ -62,7 +62,7 @@ compile-sol: ## Compile Solidity contracts
 	cd contracts && npx hardhat compile
 
 deploy: ## Deploy anchor contract to Diana testnet
-	@cd ts && npx tsx scripts/deploy-anchor.ts
+	cd contracts && npx hardhat run scripts/deploy.ts --network diana
 
 clean: ## Clean build artifacts
 	rm -rf core/target

@@ -7,18 +7,14 @@
 use pyo3::prelude::*;
 use pyo3::exceptions::{PyValueError, PyRuntimeError};
 use qoreseal::{
-    envelope::{seal, open, parse_envelope, SealArgs, envelope_to_text, envelope_from_text, ParsedEnvelope},
+    envelope::{seal, open, parse_envelope, SealArgs, envelope_to_text, envelope_from_text},
     keys::{generate_seal_keys, SealKeyPair, SealRecipient, validate_mlkem_public_key, validate_x25519_public_key},
-    errors::{Error as QoresealError, Result as QoresealResult},
-    constants::SealMode,
 };
-use zeroize::{Zeroize, Zeroizing};
-use std::sync::Arc;
-use base64::Engine as _;
+use zeroize::Zeroizing;
 
 /// Python-facing ML-KEM-1024 envelope (base64url text form)
 #[pyclass]
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Envelope {
     inner: String,
 }
@@ -46,7 +42,7 @@ impl Envelope {
 
 /// Python-facing seal key pair (ML-KEM-1024 + X25519)
 #[pyclass]
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct SealKeys {
     // Secret keys wrapped in Zeroizing for memory protection
     mlkem_secret: Zeroizing<Vec<u8>>,
@@ -106,7 +102,7 @@ impl SealKeys {
 
 /// Python-facing recipient for sealing
 #[pyclass]
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Recipient {
     inner: SealRecipient,
 }
@@ -124,7 +120,7 @@ impl Recipient {
         let x25519_public = if let Some(x) = x25519_public_b64url {
             let decoded = base64::Engine::decode(&base64::engine::general_purpose::URL_SAFE_NO_PAD, &x)
                 .map_err(|e| PyValueError::new_err(format!("Invalid X25519 public key: {}", e)))?;
-            let result = validate_x25519_public_key(&decoded)
+            validate_x25519_public_key(&decoded)
                 .map_err(|e| PyValueError::new_err(format!("Invalid X25519 public key: {}", e)))?;
             Some(decoded)
         } else {
@@ -271,7 +267,7 @@ fn parse_envelope_info(envelope: &str) -> PyResult<ParsedEnvelopeInfo> {
 
 /// Python-facing parsed envelope info
 #[pyclass]
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct ParsedEnvelopeInfo {
     version: u8,
     mode: String,
@@ -293,7 +289,7 @@ impl ParsedEnvelopeInfo {
 
 /// Python-facing envelope entry info
 #[pyclass]
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct EnvelopeEntryInfo {
     hint: String,
     mlkem_ciphertext: String,

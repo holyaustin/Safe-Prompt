@@ -39,11 +39,14 @@ class SafePromptCrypto:
         """Generate a new ML-KEM-1024 + X25519 key pair. Returns (mlkem_pub, x25519_pub, mlkem_sec, x25519_sec) as base64url."""
         if self.backend == "rust":
             keys = self._rust.SealKeys.generate()
+            # Rust getters return Vec<u8> -> Python list of ints; convert to bytes -> hex
+            mlkem_secret_bytes = bytes(keys.mlkem_secret_raw) if isinstance(keys.mlkem_secret_raw, list) else bytes(keys.mlkem_secret_raw)
+            x25519_secret_bytes = bytes(keys.x25519_secret_raw) if isinstance(keys.x25519_secret_raw, list) else bytes(keys.x25519_secret_raw)
             return (
                 keys.mlkem_public,
                 keys.x25519_public,
-                keys.mlkem_secret_raw.hex(),
-                keys.x25519_secret_raw.hex(),
+                mlkem_secret_bytes.hex(),
+                x25519_secret_bytes.hex(),
             )
         else:
             return self._python_generate_keys()
@@ -96,15 +99,14 @@ class SafePromptCrypto:
             if isinstance(x25519_public, str):
                 x25519_public = base64.urlsafe_b64decode(x25519_public + "==")
 
-            keys = self._rust.SealKeys.__new__(self._rust.SealKeys)
-            # We need to construct the SealKeys from raw values
-            # For simplicity, use the raw byte approach
-            return self._rust.open_envelope(
+            plaintext = self._rust.open_envelope(
                 chain_id, purpose, envelope_text,
                 bytes(mlkem_secret), bytes(x25519_secret),
                 bytes(mlkem_public), bytes(x25519_public),
                 aad
             )
+            # Rust returns Vec<u8> -> Python list of ints; normalize to bytes
+            return bytes(plaintext) if isinstance(plaintext, list) else plaintext
         else:
             return self._python_open(chain_id, purpose, envelope_text, mlkem_secret, x25519_secret, mlkem_public, x25519_public, aad)
 

@@ -1,6 +1,6 @@
 [build-system]
-requires = ["maturin>=1.0,<2.0"]
-build-backend = "maturin"
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
 
 [project]
 name = "safe-prompt"
@@ -8,20 +8,34 @@ version = "0.1.0"
 description = "Post-Quantum Encrypted LLM Prompt & Secret Sharing for QoreChain"
 requires-python = ">=3.10"
 dependencies = [
-    "textual>=0.8.0,<1.0",
-    "textual-web>=0.8.0",
+    "textual>=0.43.0,<0.44.0",
+    "textual-web>=0.8.0,<0.9.0",
     "fastapi>=0.100.0",
     "httpx>=0.25.0",
     "qorechain-sdk>=0.15.0",
     "qorechain-qoreseal>=0.1.0",
     "pydantic>=2.5.0",
     "pyyaml>=6.0.1",
+    "typer>=0.9.0",
+    "rich>=13.0.0",
+    "uvicorn[standard]>=0.22.0",
+    "python-multipart>=0.0.9",
 ]
 
 [project.scripts]
-safe-prompt-cli = "safe_prompt.cli:app"
-safe-prompt-serve = "safe_prompt.gateway:main"
-safe-prompt-serve-web = "safe_prompt.cli:web_mode"
+safe-prompt = "safe_prompt.cli:main"
+safe-prompt-serve = "safe_prompt.gateway.app:main"
+safe-prompt-serve-web = "safe_prompt.cli:serve_web"
 
+[tool.setuptools]
+package-dir = {"" = "py"}
+
+[tool.setuptools.packages.find]
+where = ["py"]
+include = ["safe_prompt*"]
+
+# Rust core is built separately with maturin:
+#   pip install maturin && cd core && maturin develop
+# This section is kept for documentation only.
 [tool.maturin]
-features = ["pyo3/extensions"]
+features = ["pyo3/extension-module"]

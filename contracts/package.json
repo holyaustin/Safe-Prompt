@@ -9,9 +9,7 @@
     "deploy:diana": "hardhat run scripts/deploy.ts --network diana",
     "verify:diana": "hardhat verify --network diana"
   },
-  "dependencies": {
-    "@qorechain/asset-kit": "npm:qorechain-asset-kit@0.1.0"
-  },
+  "dependencies": {},
   "devDependencies": {
     "@nomicfoundation/hardhat-toolbox": "^5.0.0",
     "@nomicfoundation/hardhat-ethers": "^3.0.0",

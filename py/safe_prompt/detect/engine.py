@@ -135,10 +135,10 @@ class Detector:
                     continue
                 if rule.validate and not rule.validate(value):
                     continue
-                matches.append(Match(m.start(), m.end(), rule.kind, value, rule.priority, rule.source))
+                matches.append(Match(m.start(), m.end(), rule.kind, value, rule.priority, "regex"))
 
         # Sort by start position, then dedupe overlaps keeping highest priority
-        matches.sort(key=lambda m: (m.start(), -m.priority))
+        matches.sort(key=lambda m: (m.start, -m.priority))
         deduped: list[Match] = []
         for m in matches:
             if deduped and m.start < deduped[-1].end:

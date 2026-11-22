@@ -100,19 +100,12 @@ def doctor():
     except ImportError:
         checks.append(("Rust core not built — run 'make build-core'", False))
 
-    # qorechain-sdk availability
+    # qoreseal (ML-KEM-1024) availability
     try:
-        import qorechain_sdk  # noqa
-        checks.append(("qorechain-sdk installed", True))
+        import qoreseal  # noqa
+        checks.append(("qoreseal (ML-KEM-1024 + X25519) installed", True))
     except ImportError:
-        checks.append(("qorechain-sdk NOT installed", False))
-
-    # qorechain-qoreseal availability
-    try:
-        import qorechain_qoreseal  # noqa
-        checks.append(("qorechain-qoreseal (Python) installed", True))
-    except ImportError:
-        checks.append(("qorechain-qoreseal NOT installed", False))
+        checks.append(("qoreseal NOT installed", False))
 
     # FastAPI
     try:

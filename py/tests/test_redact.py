@@ -40,13 +40,13 @@ class TestRedactor:
         payload = {"messages": [{"role": "user", "content": "The API key sk-proj-Q8x2LmN4vB7cR1tY9uZ3aW5eD6fG0hJk9fQ2aBcDeFgHiJkLm"}]}
         # No redaction applied -> fail closed should catch
         values = []
-        try:
+        # Fail closed: the unredacted secret must be caught
+        with pytest.raises(LeakBlocked):
             check_outbound(payload, values, self.detector)
-            # No values to check against, but detector structured_only should find it
-            matches = self.detector.find(payload["messages"][0]["content"], structured_only=True)
-            assert len(matches) > 0
-        except LeakBlocked:
-            pytest.fail("Should not raise with no values provided")
+        # And the detector confirms the secret was found
+        matches = self.detector.find(payload["messages"][0]["content"], structured_only=True)
+        assert len(matches) > 0
+        assert matches[0].kind == "APIKEY"
 
 
 import json  # noqa: E402  (used above)
