@@ -3,6 +3,7 @@
 
 #![forbid(unsafe_code)]
 #![warn(missing_debug_implementations)]
+#![allow(unexpected_cfgs)]  // PyO3 create_exception! generates gil-refs cfgs
 
 use pyo3::prelude::*;
 use pyo3::exceptions::{PyValueError, PyRuntimeError};
@@ -111,6 +112,7 @@ pub struct Recipient {
 impl Recipient {
     /// Create a recipient from a base64url-encoded ML-KEM public key (and optional X25519 key)
     #[staticmethod]
+    #[pyo3(signature = (mlkem_public_b64url, x25519_public_b64url=None))]
     fn from_public_keys(mlkem_public_b64url: String, x25519_public_b64url: Option<String>) -> PyResult<Self> {
         let mlkem_public = base64::Engine::decode(&base64::engine::general_purpose::URL_SAFE_NO_PAD, &mlkem_public_b64url)
             .map_err(|e| PyValueError::new_err(format!("Invalid ML-KEM public key: {}", e)))?;
@@ -150,6 +152,7 @@ impl Recipient {
 /// Seal (encrypt) plaintext to one or more recipients using ML-KEM-1024
 /// Returns the envelope in base64url text form ("qoreseal:...")
 #[pyfunction]
+#[pyo3(signature = (chain_id, purpose, recipients, plaintext, mode=None, anonymous=None, aad=None))]
 fn seal_envelope(
     chain_id: &str,
     purpose: &str,
@@ -186,6 +189,7 @@ fn seal_envelope(
 /// Open (decrypt) an envelope using the recipient's key pair
 /// Returns the plaintext bytes
 #[pyfunction]
+#[pyo3(signature = (chain_id, purpose, envelope, mlkem_secret, x25519_secret, mlkem_public, x25519_public, aad=None))]
 fn open_envelope(
     chain_id: &str,
     purpose: &str,
@@ -218,6 +222,7 @@ fn open_envelope(
 
 /// Open an envelope using a SealKeys object (convenience method)
 #[pyfunction]
+#[pyo3(signature = (chain_id, purpose, envelope, keys, aad=None))]
 fn open_envelope_with_keys(
     chain_id: &str,
     purpose: &str,

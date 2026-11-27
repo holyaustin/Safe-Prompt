@@ -8,7 +8,8 @@ async function main() {
   await contract.waitForDeployment();
 
   console.log(`SafePromptAnchor deployed at: ${contract.target}`);
-  console.log(`Owner: ${contract.owner()}`);
+  const owner = await contract.owner();
+  console.log(`Owner: ${owner}`);
 
   // Get transaction hash of deploy
   const receipt = await ethers.provider.getTransactionReceipt(contract.deploymentTransaction().hash);

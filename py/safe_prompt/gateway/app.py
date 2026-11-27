@@ -122,6 +122,36 @@ async def chat_completions(
     except LeakBlocked as e:
         raise HTTPException(status_code=422, detail=str(e))
 
+    requested_model = redacted_body.get("model")
+
+    # Redact-only mode: return the redacted transcript locally, never call
+    # upstream. Used by the TUI "Wire" preview and for demos without a key.
+    if requested_model == "safe-prompt-redact":
+        redacted_text = "\n".join(
+            m["content"]
+            if isinstance(m.get("content"), str)
+            else json.dumps(m.get("content"))
+            for m in redacted_body.get("messages", [])
+            if m.get("content") is not None
+        )
+        return {
+            "id": f"chatcmpl-{int(time.time())}",
+            "object": "chat.completion",
+            "created": int(time.time()),
+            "model": "safe-prompt-redact",
+            "choices": [
+                {
+                    "index": 0,
+                    "message": {"role": "assistant", "content": redacted_text},
+                    "finish_reason": "stop",
+                }
+            ],
+        }
+
+    # Resolve the internal alias ("safe-prompt") to the configured upstream model.
+    if not requested_model or requested_model == "safe-prompt":
+        redacted_body["model"] = settings.default_model
+
     # Forward to upstream
     if not upstream_client:
         raise HTTPException(status_code=503, detail="Upstream client not initialized")
@@ -131,6 +161,10 @@ async def chat_completions(
         "Authorization": f"Bearer {settings.upstream_api_key or 'mock'}",
         "Content-Type": "application/json",
     }
+    if settings.upstream_referer:
+        headers["HTTP-Referer"] = settings.upstream_referer
+    if settings.upstream_title:
+        headers["X-Title"] = settings.upstream_title
 
     if request.stream:
         return StreamingResponse(
@@ -154,30 +188,38 @@ async def stream_upstream(
     url: str, body: dict, headers: dict, redactor: Redactor
 ) -> AsyncGenerator[str, None]:
     """Stream from upstream, rehydrating placeholders in SSE chunks."""
-    async with upstream_client.stream("POST", url, json=body, headers=headers) as resp:
-        resp.raise_for_status()
-        rehydrator = StreamRehydrator(lambda ph: resolve_placeholder(ph, redactor))
-        async for line in resp.aiter_lines():
-            if not line:
-                yield "\n"
-                continue
-            if line.startswith("data: "):
-                data = line[6:]
-                if data == "[DONE]":
-                    yield f"data: {data}\n\n"
-                    break
-                try:
-                    chunk = json.loads(data)
-                    content = chunk.get("choices", [{}])[0].get("delta", {}).get("content", "")
-                    if content:
-                        chunk["choices"][0]["delta"]["content"] = rehydrator.feed(content)
-                    yield f"data: {json.dumps(chunk)}\n\n"
-                except json.JSONDecodeError:
-                    yield f"data: {data}\n\n"
-        # Flush any remaining buffered partial placeholder
-        final = rehydrator.finish()
-        if final:
-            yield f"data: {json.dumps({'choices': [{'delta': {'content': final}}]})}\n\n"
+    try:
+        async with upstream_client.stream("POST", url, json=body, headers=headers) as resp:
+            if resp.status_code >= 400:
+                detail = (await resp.aread()).decode(errors="replace")
+                yield f"data: {json.dumps({'error': {'status': resp.status_code, 'message': detail}})}\n\n"
+                yield "data: [DONE]\n\n"
+                return
+            rehydrator = StreamRehydrator(lambda ph: resolve_placeholder(ph, redactor))
+            async for line in resp.aiter_lines():
+                if not line:
+                    yield "\n"
+                    continue
+                if line.startswith("data: "):
+                    data = line[6:]
+                    if data == "[DONE]":
+                        yield f"data: {data}\n\n"
+                        break
+                    try:
+                        chunk = json.loads(data)
+                        content = chunk.get("choices", [{}])[0].get("delta", {}).get("content", "")
+                        if content:
+                            chunk["choices"][0]["delta"]["content"] = rehydrator.feed(content)
+                        yield f"data: {json.dumps(chunk)}\n\n"
+                    except json.JSONDecodeError:
+                        yield f"data: {data}\n\n"
+            # Flush any remaining buffered partial placeholder
+            final = rehydrator.finish()
+            if final:
+                yield f"data: {json.dumps({'choices': [{'delta': {'content': final}}]})}\n\n"
+            yield "data: [DONE]\n\n"
+    except Exception as e:  # network/transport failure mid-stream
+        yield f"data: {json.dumps({'error': {'message': str(e)}})}\n\n"
         yield "data: [DONE]\n\n"
 
 

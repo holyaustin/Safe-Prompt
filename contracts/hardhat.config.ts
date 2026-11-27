@@ -26,9 +26,11 @@ const config: HardhatUserConfig = {
       chainId: 31337,
     },
     diana: {
-      url: process.env.QORECHAIN_DIANA_RPC_URL || "https://diana-rpc.qorechain.io",
+      url: process.env.QORECHAIN_DIANA_RPC_URL || "https://evm-testnet.qore.host",
       chainId: 9800,
-      accounts: process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : [],
+      accounts: (process.env.QORECHAIN_PRIVATE_KEY || process.env.PRIVATE_KEY)
+        ? [process.env.QORECHAIN_PRIVATE_KEY || process.env.PRIVATE_KEY!]
+        : [],
     },
   },
   etherscan: {

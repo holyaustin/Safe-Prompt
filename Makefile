@@ -15,7 +15,7 @@ install-python: ## Install Python deps (venv + pip)
 	.venv/bin/pip install -e ./py
 
 install-rust: ## Build Rust core (PyO3)
-	cd core && maturin develop
+	cd core && maturin develop --features extension-module
 
 install-ts: ## Install TypeScript deps
 	npm install
@@ -24,10 +24,10 @@ install-hardhat: ## Install Solidity/Hardhat deps
 	cd contracts && npm install
 
 build-core: ## Build release Rust core
-	cd core && maturin build --release
+	cd core && maturin build --release --features extension-module
 
 build-core-debug: ## Build debug Rust core
-	cd core && maturin build
+	cd core && maturin build --features extension-module
 
 # ------------------------------------------------------------------ run
 tui: ## Run local Textual TUI

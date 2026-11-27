@@ -30,6 +30,7 @@ contract SafePromptAnchor {
 
     mapping(bytes32 => Envelope) public envelopes;
     bytes32[] public commitmentRoots;
+    bytes32[] public sealedCommitments;
 
     // Access control: admin can revoke, sender can authorize recipients
     event EnvelopeSealed(
@@ -68,6 +69,8 @@ contract SafePromptAnchor {
     /**
      * @dev Register a new envelope commitment on-chain.
      * Anyone can seal an envelope for authorized recipients.
+     * Re-sealing an already-sealed (active) commitment adds the recipient.
+     * Re-sealing a revoked commitment is rejected.
      */
     function seal(
         bytes32 commitment,
@@ -79,21 +82,23 @@ contract SafePromptAnchor {
 
         Envelope storage env = envelopes[commitment];
         if (env.active) {
-            // Update authorization for this commitment only
+            // Already active: just add this recipient to the authorized set
             env.authorized[recipient] = true;
+        } else if (env.createdAt != 0) {
+            // Was sealed before and revoked — cannot re-seal
+            revert SafePromptAnchor__AlreadyRevoked();
         } else {
-            env = Envelope({
-                commitment: commitment,
-                rootHash: keccak256(abi.encodePacked(commitment, block.timestamp)),
-                sender: msg.sender,
-                createdAt: uint64(block.timestamp),
-                revokedAt: 0,
-                active: true,
-                authorized: mapping(address => bool)({[recipient]: true}),
-                purpose: purpose,
-                chainIdBytes: chainIdBytes,
-            });
-            envelopes[commitment] = env;
+            env.commitment = commitment;
+            env.rootHash = keccak256(abi.encodePacked(commitment, block.timestamp));
+            env.sender = msg.sender;
+            env.createdAt = uint64(block.timestamp);
+            env.revokedAt = 0;
+            env.active = true;
+            env.authorized[recipient] = true;
+            env.purpose = purpose;
+            env.chainIdBytes = chainIdBytes;
+
+            sealedCommitments.push(commitment);
             commitmentRoots.push(env.rootHash);
         }
 
@@ -112,23 +117,21 @@ contract SafePromptAnchor {
 
         env.active = false;
         env.revokedAt = uint64(block.timestamp);
-        envelopes[commitment] = env;
 
         emit EnvelopeRevoked(commitment, msg.sender, env.revokedAt);
     }
 
     /**
      * @dev Authorize an additional recipient to open an envelope.
-     * Callable by sender or owner.
+     * Only the original sender may authorize (owner may revoke only).
      */
     function authorizeRecipient(bytes32 commitment, address recipient) external {
         Envelope storage env = envelopes[commitment];
-        if (!env.active) revert SafePromptAnchor__AlreadyRevoked();
-        if (msg.sender != owner && msg.sender != env.sender) {
+        if (msg.sender != env.sender) {
             revert SafePromptAnchor__Unauthorized();
         }
+        if (!env.active) revert SafePromptAnchor__AlreadyRevoked();
         env.authorized[recipient] = true;
-        envelopes[commitment] = env;
     }
 
     /**
@@ -164,7 +167,7 @@ contract SafePromptAnchor {
             env.revokedAt,
             env.active,
             env.purpose,
-            env.chainIdBytes,
+            env.chainIdBytes
         );
     }
 
@@ -181,10 +184,9 @@ contract SafePromptAnchor {
      */
     function envelopeCount() external view returns (uint256) {
         uint256 count = 0;
-        for (uint256 i = 0; i < commitmentRoots.length; i++) {
-            // Linear scan over roots; each root corresponds to one envelope
-            bytes32 root = commitmentRoots[i];
-            if (envelopes[root].active) {
+        for (uint256 i = 0; i < sealedCommitments.length; i++) {
+            // Linear scan over sealed commitments
+            if (envelopes[sealedCommitments[i]].active) {
                 count++;
             }
         }

@@ -1,41 +1,106 @@
 # Safe Prompt — End-to-End Running & Testing Guide
 
+## ⚡ Quick Start (one command — all four workspaces)
+```bash
+cd /home/augustineonuora/Dapps-Empty/2026/Nov2026/safe-prompt
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -e . pytest pytest-asyncio
+pip install maturin
+(cd core && maturin develop --features extension-module)
+(cd ts && npm install)
+(cd contracts && npm install)
+safe-prompt doctor
+```
+
 ## ✅ What's Done vs. What Needs Manual Deployment
 
 | Component | Status |
 |-----------|--------|
-| Rust core (`safe_prompt_core`) | ✅ Built and installed |
-| Python package (`safe-prompt`) | ✅ Installed with all deps |
+| Rust core (`safe_prompt_core`) | ✅ Built and installed (via `maturin develop --features extension-module`) |
+| Python package (`safe-prompt`) | ✅ Installed with all deps (via `pip install -e .`) |
 | FastAPI gateway (`/v1/chat/completions`) | ✅ Runs locally on `127.0.0.1:8787` |
 | Textual TUI + `textual-web` server | ✅ Runs locally on `127.0.0.1:8787` / `localhost:8080` |
-| Envelope create/open (ML-KEM-1024) | ✅ Roundtrip tested |
-| Solidity contract (`SafePromptAnchor.sol`) | ✅ Written + 7 Hardhat tests — **NOT deployed yet** |
-| Diana testnet deployment | ❌ **Requires your private key + testnet funds** |
-| Contract address config | ❌ **Must be added after deployment** |
+| Envelope create/open (ML-KEM-1024) | ✅ Roundtrip tested (Python + Rust core) |
+| Solidity contract (`SafePromptAnchor.sol`) | ✅ Written + 7 Hardhat tests — **Compiles + all 8 pass** |
+| Diana testnet deployment | ✅ Deployed — `0xb22d64B05F09044c36a052556AC2ddB073bd19cC` |
+| Contract address config | ✅ Added to root `.env` and `contracts/.env` |
 | Vercel/Railway remote deploy | ✅ Config ready — needs your account |
+| TypeScript on-chain bridge | ✅ Installed (`npm install` — 176 packages), compiles with `tsc` |
+| Python Python venv | ✅ Created and activated |
 
 ---
 
-## 📦 Part 1: Install & Run Everything Locally
+## 📦 Part 1: Install Everything (All 4 Components)
 
-### 1.1 Activate the Python venv
+Safe Prompt has **four** workspaces, each with its own toolchain. Install them in order.
+
+### 1.0 Prerequisites
+```bash
+sudo apt-get update && sudo apt-get install -y \
+  python3.10 python3.10-venv python3-pip \
+  nodejs npm cargo rustc pkg-config libssl-dev
+```
+
+### 1.1 Python venv + Python package (`py/`)
+> The project root is `safe-prompt/` (where `pyproject.toml` lives). The package
+> source is under `py/safe_prompt/`. **Do NOT `pip install -e ./py`** — install
+> from the project root with `-e .`:
+```bash
+cd /home/augustineonuora/Dapps-Empty/2026/Nov2026/safe-prompt
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -e .            # installs safe-prompt from root pyproject.toml
+pip install pytest pytest-asyncio   # test deps
+```
+
+### 1.2 Rust crypto core (`core/`)
+> Requires the venv from step 1.1 to exist. `--features extension-module` is
+> **required** (otherwise maturin links libpython and fails manylinux checks):
 ```bash
 cd /home/augustineonuora/Dapps-Empty/2026/Nov2026/safe-prompt
 source .venv/bin/activate
-```
-
-### 1.2 Build Rust core (if not already done)
-```bash
-cd core
 pip install maturin
+cd core
 maturin develop --features extension-module
 ```
+> Equivalent: `make install-rust` or `make build-core` (both now pass the feature flag).
 
-### 1.3 Verify all components
+### 1.3 TypeScript on-chain bridge (`ts/`)
 ```bash
+cd /home/augustineonuora/Dapps-Empty/2026/Nov2026/safe-prompt/ts
+npm install
+```
+> Provides `tsx` (run scripts), `ethers`, `viem`, `@qorechain/sdk`, `@qorechain/qoresign`,
+> `@qorechain/qoreseal`, `@qorechain/evm`, `dotenv`, `vitest`, `typescript`.
+
+### 1.4 Solidity contracts + Hardhat (`contracts/`)
+```bash
+cd /home/augustineonuora/Dapps-Empty/2026/Nov2026/safe-prompt/contracts
+npm install
+```
+> Provides Hardhat, hardhat-toolbox, hardhat-ethers, chai, ethers, ts-node, typescript.
+
+### 1.5 Verify everything
+```bash
+cd /home/augustineonuora/Dapps-Empty/2026/Nov2026/safe-prompt
+source .venv/bin/activate
 safe-prompt doctor
 ```
-Expected output: all ✅ (Rust core, qoreseal, fastapi, textual, textual-web).
+Expected: all ✅ (Python ≥3.10, Rust core, qoreseal, fastapi, textual, textual-web).
+
+### 1.6 One-shot install (all four at once)
+```bash
+cd /home/augustineonuora/Dapps-Empty/2026/Nov2026/safe-prompt
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -e . pytest pytest-asyncio
+pip install maturin
+(cd core && maturin develop --features extension-module)
+(cd ts && npm install)
+(cd contracts && npm install)
+safe-prompt doctor
+```
 
 ---
 
@@ -132,6 +197,42 @@ curl -s -X POST http://127.0.0.1:8787/v1/chat/completions \
 kill %1 2>/dev/null
 ```
 
+### 2.4.1 Wire a live LLM (OpenRouter / any OpenAI-compatible API)
+
+The gateway is an OpenAI-compatible proxy, so any provider that speaks the
+OpenAI Chat Completions API works — OpenRouter, OmniRouter, OpenAI, Groq,
+Together, or a local Ollama/vLLM server.
+
+Set three variables in the root `.env`:
+
+```bash
+SAFE_PROMPT_UPSTREAM_LLM_URL=https://openrouter.ai/api/v1/chat/completions
+SAFE_PROMPT_UPSTREAM_API_KEY=sk-or-v1-...          # your OpenRouter key
+SAFE_PROMPT_DEFAULT_MODEL=openai/gpt-4o-mini      # any OpenRouter model id
+```
+
+Restart the gateway (`safe-prompt serve`) and it will forward live:
+
+```bash
+curl -s -X POST http://127.0.0.1:8787/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{"model":"safe-prompt","messages":[{"role":"user","content":"Say hello in one word."}]}'
+```
+
+Notes:
+- **Redaction still applies.** Secrets in the prompt are replaced with `[KIND_n]`
+  placeholders *before* the request leaves your machine; the upstream model never
+  sees them. The fail-closed guard blocks the request (HTTP 422) if anything leaks.
+- **Internal model alias.** The TUI sends `safe-prompt`; the gateway rewrites it to
+  `SAFE_PROMPT_DEFAULT_MODEL`. To pin a specific model per request, send its real id
+  (e.g. `anthropic/claude-3.5-sonnet`).
+- **Redact-only preview.** `{"model":"safe-prompt-redact", ...}` returns the redacted
+  transcript locally without calling upstream (no API key needed).
+- **Streaming** (`"stream": true`) is rehydrated chunk-by-chunk, so placeholders are
+  restored in the live SSE stream.
+- OpenRouter optionally accepts `HTTP-Referer` / `X-Title` attribution headers; set
+  `SAFE_PROMPT_UPSTREAM_REFERER` / `SAFE_PROMPT_UPSTREAM_TITLE`.
+
 ### 2.5 Test the TUI Locally
 ```bash
 # Terminal 1: Start gateway
@@ -169,7 +270,7 @@ safe-prompt serve-web --host 0.0.0.0 --port 8080
 ```bash
 cd contracts
 cat > .env << 'EOF'
-QORECHAIN_DIANA_RPC_URL=https://diana-rpc.qorechain.io
+QORECHAIN_DIANA_RPC_URL=https://evm-testnet.qore.host
 QORECHAIN_EXPLORER_API_KEY=your-explorer-key
 PRIVATE_KEY=your-private-key-with-diana-funds
 EOF
@@ -202,27 +303,24 @@ npx hardhat compile
 ```bash
 npx hardhat test
 ```
-Expected: 7 tests passing (seal, revoke, authorize, access control, zero commitment, re-sealing revoked, root anchoring).
+Expected: 8 tests passing (seal, revoke, authorize, access control, zero commitment, re-sealing revoked, root anchoring).
 
 ### 3.4 Deploy to Diana Testnet
 ```bash
+cd contracts
 npx hardhat run scripts/deploy.ts --network diana
 ```
 
-> **If deployment succeeds**, you'll see:
-> ```
-> SafePromptAnchor deployed at: 0xAbC123...your-contract-address
-> Deploy tx: 0x123abc...tx-hash
-> ```
-> **Save this contract address!** You'll need it in the next step.
+> **Already deployed**: `SafePromptAnchor` at `0xb22d64B05F09044c36a052556AC2ddB073bd19cC` on Diana testnet (chain 9800).
+> Deployer: `0x099DA5ABAA1B34A01662C1eAD7306D7481710118` (99.06 ETH on testnet).
 
 ### 3.5 Verify the Deployment
 ```bash
 # Check on explorer (if explorer available)
-# https://explorer.diana.qorechain.io/address/<contract-address>
+
 
 # Or verify via Hardhat
-npx hardhat verify --network diana <CONTRACT_ADDRESS> 0x0 "0x636173682f636861742f696e666f"
+npx hardhat verify --network diana 0xb22d64B05F09044c36a052556AC2ddB073bd19cC 0x0 "0x636173682f636861742f696e666f"
 ```
 
 ### 3.6 Test the Contract Interactively
@@ -232,7 +330,7 @@ npx hardhat console --network diana
 
 # In the console:
 const SafePromptAnchor = await ethers.getContractFactory("SafePromptAnchor");
-const contract = await SafePromptAnchor.at("YOUR_CONTRACT_ADDRESS_HERE");
+const contract = await SafePromptAnchor.at("0xb22d64B05F09044c36a052556AC2ddB073bd19cC");
 
 // Check owner
 console.log("Owner:", await contract.owner());
@@ -255,40 +353,29 @@ console.log("Is authorized:", await contract.isAuthorized(commitment, recipient)
 ## 🔗 Part 4: Connect the Contract Address to the App
 
 ### 4.1 Add Contract Address to Environment Variables
-Create `.env` in the **root** `safe-prompt/` directory:
+> **Already done**: `QORECHAIN_ANCHOR_CONTRACT_ADDRESS=0xb22d64B05F09044c36a052556AC2ddB073bd19cC` is in root `.env` and `contracts/.env`.
+
+If setting up on a new machine, create `.env` in the root `safe-prompt/` directory:
 ```bash
 # .env (in safe-prompt/ root)
-QORECHAIN_ANCHOR_CONTRACT_ADDRESS=0xYourDeployedContractAddressHere
-QORECHAIN_DIANA_RPC_URL=https://diana-rpc.qorechain.io
+QORECHAIN_ANCHOR_CONTRACT_ADDRESS=0xb22d64B05F09044c36a052556AC2ddB073bd19cC
+QORECHAIN_DIANA_RPC_URL=https://evm-testnet.qore.host
 QORECHAIN_NETWORK=qorechain-diana
 QORECHAIN_CHAIN_ID=9800
 ```
 
 ### 4.2 Update the TypeScript Bridge
-Edit `ts/src/onchain.ts`:
-```typescript
-// Add this near the top
-const ANCHOR_ADDRESS = process.env.QORECHAIN_ANCHOR_CONTRACT_ADDRESS || "0xYourAddressHere";
-
-// In your SafePromptOnChain class constructor or as a module-level constant
-export const SAFE_PROMPT_ANCHOR_ADDRESS = ANCHOR_ADDRESS;
-```
+> **Already done**: `ts/src/onchain.ts` reads `ANCHOR_ADDRESS` from `process.env.QORECHAIN_ANCHOR_CONTRACT_ADDRESS` with fallback to `""`.
 
 ### 4.3 Update the Python Config
-Edit `py/safe_prompt/config.py`:
-```python
-class Settings(BaseModel):
-    # Add these fields
-    anchor_contract_address: Optional[str] = Field(default=None)
-    # ...
-```
+> **Already done**: `py/safe_prompt/config.py` reads `QORECHAIN_ANCHOR_CONTRACT_ADDRESS` via `@model_validator` (no `SAFE_PROMPT_` prefix needed).
 
 ### 4.4 Verify the Connection
 ```bash
 # Test that the app can read the contract
 python3 -c "
 import os
-os.environ['QORECHAIN_ANCHOR_CONTRACT_ADDRESS'] = '0xYourAddress'
+os.environ['QORECHAIN_ANCHOR_CONTRACT_ADDRESS'] = '0xb22d64B05F09044c36a052556AC2ddB073bd19cC'
 print('Anchor contract:', os.environ['QORECHAIN_ANCHOR_CONTRACT_ADDRESS'])
 "
 ```
@@ -374,6 +461,11 @@ git push -u origin main
 QORECHAIN_ANCHOR_CONTRACT_ADDRESS=0xYourDeployedAddress
 ```
 
+### Q: How do I use a real LLM (OpenRouter / OmniRouter)?
+**A:** Set `SAFE_PROMPT_UPSTREAM_LLM_URL`, `SAFE_PROMPT_UPSTREAM_API_KEY` and
+`SAFE_PROMPT_DEFAULT_MODEL` in the root `.env`, then restart the gateway.
+See **§2.4.1 Wire a live LLM** above.
+
 ### Q: What if I don't have Diana testnet funds?
 **A:** The Solidity contract deployment requires testnet funds. Without them:
 - The **local Python app** (gateway, TUI, detection, envelope encryption) still works 100%.
@@ -390,7 +482,7 @@ npx hardhat test  # Runs 7 tests against local in-memory network
 ### Q: How do I connect the TypeScript bridge to Diana?
 **A:** Set the environment variable in `ts/.env`:
 ```bash
-QORECHAIN_DIANA_RPC_URL=https://diana-rpc.qorechain.io
+QORECHAIN_DIANA_RPC_URL=https://evm-testnet.qore.host
 QORECHAIN_PRIVATE_KEY=your-private-key
 ```
 
