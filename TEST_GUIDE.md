@@ -496,7 +496,7 @@ Inside the running TUI, type each command and observe:
 
 **Verification:** after `/demo 1`, Pane ① shows the raw test text; Pane ② shows `[APIKEY_1]` / `[CARD_1]` placeholders; Pane ③ shows QoreChain network `qorechain-diana` chain 9800.
 
-Exit the TUI with `q` or `Ctrl-C`.
+Exit the TUI with `q` or `Ctrl-C`.q
 
 ---
 

@@ -255,6 +255,134 @@ async def health():
     }
 
 
+# ------------------------------------------------------------------ web UI
+_WEB_UI_HTML = """<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Safe Prompt — Web</title>
+<style>
+  :root { --bg:#0d1117; --fg:#c9d1d9; --accent:#58a6ff; --ok:#3fb950; --err:#f85149; --dim:#8b949e; }
+  * { box-sizing: border-box; }
+  body { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; background: var(--bg); color: var(--fg); margin: 0; padding: 12px; }
+  h1 { font-size: 16px; color: var(--accent); }
+  .row { display: flex; gap: 8px; align-items: center; margin: 8px 0; }
+  select, textarea, button { font: inherit; }
+  select { background:#161b22; color:var(--fg); border:1px solid #30363d; padding:4px; }
+  textarea { width: 100%; min-height: 60px; background:#161b22; color:var(--fg); border:1px solid #30363d; padding:8px; resize: vertical; }
+  button { background:var(--accent); color:#0d1117; border:none; padding:6px 12px; cursor:pointer; font-weight: bold; }
+  button:hover { opacity:.85; }
+  pre { background:#0d1117; border:1px solid #30363d; padding:8px; white-space: pre-wrap; word-break: break-word; font-size: 12px; min-height: 40px; }
+  .pill { display:inline-block; padding:2px 8px; border:1px solid #30363d; border-radius:12px; font-size:12px; margin:2px; }
+  .ok { color: var(--ok); } .err { color: var(--err); } .dim { color: var(--dim); }
+</style>
+</head>
+<body>
+  <h1>🔒 Safe Prompt — Web</h1>
+  <div class="row">
+    <span class="pill" id="pill-status">status: …</span>
+    <span class="pill" id="pill-crypto">crypto: …</span>
+    <span class="pill" id="pill-network">network: …</span>
+  </div>
+  <div class="row">
+    <select id="model"><option value="safe-prompt">safe-prompt (redact → LLM)</option></select>
+    <button id="redactBtn" onclick="doRedact()">Redact Preview</button>
+  </div>
+  <div>
+    <div class="dim" style="margin-top:12px;">🗒️ Redaction preview (what upstream sees):</div>
+    <pre id="redactOut">—</pre>
+  </div>
+  <div>
+    <div class="dim" style="margin-top:12px;">💬 Chat (secret → redacted → LLM → restored):</div>
+    <pre id="chatOut">—</pre>
+  </div>
+  <div class="row">
+    <textarea id="prompt" placeholder="Enter a secret or prompt… e.g. My API key is sk-proj-…"></textarea>
+  </div>
+  <div class="row">
+    <button onclick="doChat()">Send to LLM</button>
+    <button onclick="doRedact()">Redact Preview</button>
+  </div>
+  <div class="row">
+    <button onclick="clearChat()">Clear</button>
+  </div>
+<script>
+const statusEl = document.getElementById('pill-status');
+const cryptoEl = document.getElementById('pill-crypto');
+const netEl = document.getElementById('pill-network');
+const modelSel = document.getElementById('model');
+const promptEl = document.getElementById('prompt');
+const redactOut = document.getElementById('redactOut');
+const chatOut = document.getElementById('chatOut');
+
+async function loadHealth() {
+  const r = await fetch('/health');
+  const d = await r.json();
+  statusEl.textContent = 'status: ' + d.status;
+  cryptoEl.textContent = 'crypto: ' + d.crypto_backend;
+  netEl.textContent = 'network: ' + d.network;
+}
+
+async function loadModels() {
+  const r = await fetch('/v1/models');
+  const d = await r.json();
+  modelSel.innerHTML = '';
+  for (const m of (d.data || [])) {
+    const opt = document.createElement('option');
+    opt.value = m.id; opt.textContent = m.id;
+    modelSel.appendChild(opt);
+  }
+}
+
+async function doRedact() {
+  const content = promptEl.value;
+  if (!content) { redactOut.textContent = '—'; return; }
+  const r = await fetch('/v1/chat/completions', {
+    method: 'POST', headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({model:'safe-prompt-redact', messages:[{role:'user', content: content}]})
+  });
+  const d = await r.json();
+  if (!r.ok) { redactOut.textContent = 'ERROR ' + r.status + ': ' + (d.detail || d.error || JSON.stringify(d)); return; }
+  redactOut.textContent = d.choices ? (d.choices[0] && d.choices[0].message ? d.choices[0].message.content : '') : JSON.stringify(d);
+}
+
+async function doChat() {
+  const content = promptEl.value;
+  if (!content) { chatOut.textContent = '—'; return; }
+  chatOut.textContent = 'sending…';
+  const r = await fetch('/v1/chat/completions', {
+    method: 'POST', headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({model: modelSel.value, messages:[{role:'user', content: content}]})
+  });
+  const d = await r.json();
+  if (!r.ok) { chatOut.textContent = 'ERROR ' + r.status + ': ' + (d.detail || JSON.stringify(d)); return; }
+  chatOut.textContent = d.choices && d.choices[0] && d.choices[0].message ? (d.choices[0].message.content || '') : JSON.stringify(d);
+}
+
+document.getElementById('send').onclick = doChat;
+
+(async function init() {
+  await loadHealth();
+  await loadModels();
+})();
+</script>
+</body>
+</html>
+"""
+
+
+@app.get("/web")
+async def web_ui():
+    """Serve the embedded web UI for judges (no JS framework needed)."""
+    return HTMLResponse(content=_WEB_UI_HTML, media_type="text/html")
+
+
+@app.get("/")
+async def root():
+    return HTMLResponse(content=_WEB_UI_HTML, media_type="text/html")
+
+
 def main():
     import uvicorn
     uvicorn.run(

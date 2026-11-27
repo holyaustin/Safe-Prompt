@@ -46,24 +46,22 @@ def serve_web(
     host: str = typer.Option("0.0.0.0", "--host", help="Bind host (0.0.0.0 for remote access)"),
     port: int = typer.Option(8080, "--port", help="Web port"),
 ):
-    """Serve the TUI over web via textual-web (for judges/remote access)."""
-    console.print(f"[green]Starting Safe Prompt web TUI on http://{host}:{port}[/green]")
-    try:
-        from textual_web.server import Server
-        from .tui.app import SafePromptApp
-        from .tui.client import GatewayClient
+    """Serve the Safe Prompt web UI (FastAPI) for judges and remote access.
 
-        client = GatewayClient()
+    The gateway must already be running on its default port (:8787)
+    or set SAFE_PROMPT_GATEWAY_HOST/PORT in the environment.
+    """
+    import uvicorn
+    from .gateway.app import app as fastapi_app
 
-        async def start_web():
-            app = SafePromptApp(client=client, session="web", model="")
-            server = Server(app, host=host, port=port)
-            await server.serve()
-
-        asyncio.run(start_web())
-    except ImportError:
-        console.print("[yellow]textual-web not installed. Install with: pip install textual-web[/yellow]")
-        raise typer.Exit(1)
+    console.print(f"[green]Starting Safe Prompt web UI on http://{host}:{port}[/green]")
+    uvicorn.run(
+        fastapi_app,
+        host=host,
+        port=port,
+        # Suppress uvicorn access logs for clean judge output
+        log_level="warning",
+    )
 
 
 @app.command("serve")
