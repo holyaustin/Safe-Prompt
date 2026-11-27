@@ -243,9 +243,13 @@ crypto = SafePromptCrypto(use_rust=True)
 
 # 1. Generate keys
 mlkem_pub, x25519_pub, mlkem_sec, x25519_sec = crypto.generate_keys()
-print('Keys:', len(mlkem_pub), 'bytes ML-KEM pub,', len(x25519_pub), 'bytes X25519 pub')
-assert len(mlkem_pub) == 1568
-assert len(x25519_pub) == 32
+import base64
+# Rust getters return base64-encoded public-key strings, not raw bytes.
+mlkem_pub_bytes = base64.urlsafe_b64decode(mlkem_pub + "==")
+x25519_pub_bytes = base64.urlsafe_b64decode(x25519_pub + "==")
+print('Keys:', len(mlkem_pub_bytes), 'bytes ML-KEM pub,', len(x25519_pub_bytes), 'bytes X25519 pub')
+assert len(mlkem_pub_bytes) == 1568
+assert len(x25519_pub_bytes) == 32
 
 # 2. Seal envelope
 recipients = [{'mlkem_public_key': mlkem_pub, 'x25519_public_key': x25519_pub}]
@@ -294,9 +298,12 @@ except Exception as e:
 
 ---
 
-## Part 4 — FastAPI Gateway (OpenRouter live)
+## Part 4 — FastAPI Gateway (live LLM upstream)
 
-Prerequisite: `.env` contains a real `SAFE_PROMPT_UPSTREAM_API_KEY` starting with `sk-or-v1-`.
+Prerequisite: gateway port 8787 is free.
+
+### Part 4.0 — Understand the endpoint
+Your gateway runs locally at `http://127.0.0.1:8787`. It is an **OpenAI-compatible proxy**: you call `127.0.0.1:8787/v1/chat/completions`, and the gateway redacts secrets locally, then forwards to your configured upstream (OpenRouter by default). You do **not** call `https://openrouter.ai/api/...` directly — the gateway does that for you using your key.
 
 Start the gateway in **Terminal A** and leave it running:
 
@@ -326,15 +333,23 @@ curl -s http://127.0.0.1:8787/health | python3 -m json.tool
 }
 ```
 
-### Step 4.2 — List models (proxies OpenRouter)
+### Step 4.2 — Validate your OpenRouter key (optional, only for live chat)
+
+Your `.env` key is valid but out of credits (spent $0.133 vs $0.10 limit), so live chat returns HTTP 401 until you add credits at openrouter.ai or swap in a funded key. Confirm your key is authentic:
 
 ```bash
-curl -s http://127.0.0.1:8787/v1/models | python3 -m json.tool | head -30
+KEY=$(grep '^SAFE_PROMPT_UPSTREAM_API_KEY=' .env | cut -d= -f2- | tr -d '"')
+curl -s https://openrouter.ai/api/v1/auth/key -H "Authorization: Bearer $KEY" \
+  | python3 -c "import sys,json; d=json.load(sys.stdin); print('valid:', d['data']['is_management_key']==False, '| remaining_usd:', d['data']['effective_budget']['remaining_usd'])"
 ```
 
-**Expected:** JSON array of model objects from OpenRouter (non-empty `data` array). If OpenRouter key is invalid, you may get an empty array — that is acceptable for this step.
+**Expected:** `valid: True | remaining_usd: <number>` (a negative remaining means out of credits). If this returns a 401 instead, the key itself is wrong — replace it in `.env` and restart the gateway.
+
+> For a funded key / adding credits: see https://openrouter.ai/credits
 
 ### Step 4.3 — Redact-only preview (no upstream call needed)
+
+Works even with no OpenRouter credits:
 
 ```bash
 curl -s -X POST http://127.0.0.1:8787/v1/chat/completions \
@@ -347,6 +362,8 @@ curl -s -X POST http://127.0.0.1:8787/v1/chat/completions \
 
 ### Step 4.4 — Live chat through OpenRouter (redacted → upstream → rehydrated)
 
+Requires a funded OpenRouter key (see Step 4.2). Set a real model id in `.env` (e.g. `openai/gpt-4o-mini` or `meta-llama/llama-3.1-8b-instruct:free`) and restart the gateway, then:
+
 ```bash
 curl -s -X POST http://127.0.0.1:8787/v1/chat/completions \
   -H "Content-Type: application/json" \
@@ -354,21 +371,83 @@ curl -s -X POST http://127.0.0.1:8787/v1/chat/completions \
   | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['choices'][0]['message']['content'])"
 ```
 
-**Expected:** assistant response text (e.g. `Hello!`). Crucially, the raw `sk-proj-...` string must **not** appear in the upstream request — it is replaced by `[APIKEY_1]` server-side before forwarding.
+**Expected:** assistant response text (e.g. `Hello!`). Crucially, the raw `sk-proj-...` string never leaves your machine — it is replaced by `[APIKEY_1]` server-side before forwarding.
 
-> If you get HTTP 401, your OpenRouter key is invalid or has no credits. Fix `SAFE_PROMPT_UPSTREAM_API_KEY` in `.env` and restart the gateway.
+If this returns HTTP 401 (`User not found`), your key has no remaining OpenRouter credits. Skip to Step 4.6 to test fail-closed without spending credits.
 
-### Step 4.5 — Fail-closed: raw secret in outbound → HTTP 422
+### Step 4.5 — List models (proxies OpenRouter)
 
 ```bash
-curl -s -o /dev/null -w "HTTP %{http_code}\n" -X POST http://127.0.0.1:8787/v1/chat/completions \
+curl -s http://127.0.0.1:8787/v1/models | python3 -m json.tool | head -30
+```
+
+**Expected:** JSON array of model objects from OpenRouter. With an out-of-credits key you may get an empty `data` array or a 401 — that is a credits issue, not a gateway issue.
+
+### Step 4.6 — Prove no raw secret leaves the machine (no OpenRouter credits needed)
+
+We run a tiny local echo upstream on port 8790, point the gateway at it, and inspect exactly what the upstream receives. This is the core security guarantee: the upstream sees only placeholders, never raw secrets.
+
+> **About `HTTP 422`:** the fail-closed guard (`check_outbound`) raises 422 only when a raw secret *survives* redaction. Because redaction already removes `sk-proj-...`, this HTTP test demonstrates the stronger property (upstream receives `[APIKEY_1]`). The 422 backstop itself is tested at the Python level in **Part 2.2**.
+
+**Terminal A:** run the mock echo upstream:
+
+```bash
+python3 - <<'PY' &
+from http.server import BaseHTTPRequestHandler, HTTPServer
+import json
+class H(BaseHTTPRequestHandler):
+    def do_POST(self):
+        n = int(self.headers.get('Content-Length', 0))
+        body = json.loads(self.rfile.read(n) or b'{}')
+        print("UPSTREAM GOT:", json.dumps(body))  # show what upstream receives
+        resp = json.dumps({"echo": body}).encode()
+        self.send_response(200)
+        self.send_header('Content-Type', 'application/json')
+        self.send_header('Content-Length', str(len(resp)))
+        self.end_headers()
+        self.wfile.write(resp)
+    def log_message(self, *a): pass
+HTTPServer(('127.0.0.1', 8790), H).serve_forever()
+PY
+```
+
+Then restart the gateway pointing at it:
+
+```bash
+pkill -f "safe_prompt.gateway.app:app" 2>/dev/null; sleep 1
+source .venv/bin/activate
+SAFE_PROMPT_UPSTREAM_LLM_URL=http://127.0.0.1:8790/v1/chat/completions \
+SAFE_PROMPT_UPSTREAM_API_KEY= \
+SAFE_PROMPT_DEFAULT_MODEL=mock \
+nohup safe-prompt serve --host 127.0.0.1 --port 8787 > /tmp/gateway-mock.log 2>&1 &
+sleep 3
+```
+
+Now in **Terminal B**:
+
+```bash
+echo "--- clean request ---"
+curl -s -X POST http://127.0.0.1:8787/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{"model":"safe-prompt","messages":[{"role":"user","content":"hello world"}]}'
+
+echo ""
+echo "--- secret request (inspect what the upstream receives) ---"
+curl -s -X POST http://127.0.0.1:8787/v1/chat/completions \
   -H "Content-Type: application/json" \
   -d '{"model":"safe-prompt","messages":[{"role":"user","content":"leak sk-proj-Q8x2LmN4vB7cR1tY9uZ3aW5eD6fG0hJk"}]}'
 ```
 
-**Expected:** `HTTP 422` (fail-closed block).
+Then check Terminal A's output for `UPSTREAM GOT`.
 
-### Step 4.6 — Streaming works and is rehydrated
+**Expected:**
+- clean request: returns 200; Terminal A shows `UPSTREAM GOT:` with the clean body (`hello world`).
+- secret request: returns 200; Terminal A shows `UPSTREAM GOT:` with `leak [APIKEY_1]` — the raw `sk-proj-...` **never** appears upstream (it was redacted before forwarding). Your client-side response will rehydrate `[APIKEY_1]` back to the original (safe — it never left the machine).
+- If you run `SAFE_PROMPT_UPSTREAM_API_KEY=` empty, the outbound Authorization header becomes `Bearer mock` (harmless for local echo).
+
+> Restore OpenRouter upstream afterward: edit `.env` back to `SAFE_PROMPT_UPSTREAM_LLM_URL=https://openrouter.ai/api/v1/chat/completions`, set a real key + model, and restart the gateway.
+
+### Step 4.7 — Streaming works and is rehydrated
 
 ```bash
 curl -s -N -X POST http://127.0.0.1:8787/v1/chat/completions \
@@ -541,9 +620,9 @@ npx tsx scripts/anchor-envelope.ts
 | 7 | Wrong key rejected | Part 3.2 | Exception raised |
 | 8 | Gateway health | Part 4.1 | `{"status":"ok", ...}` |
 | 9 | Redact-only endpoint | Part 4.3 | Placeholders returned, no upstream |
-| 10 | Live OpenRouter chat | Part 4.4 | Assistant response received |
-| 11 | Fail-closed HTTP 422 | Part 4.5 | Status 422 |
-| 12 | Streaming | Part 4.6 | ≥ 2 `data:` events |
+| 10 | Live OpenRouter chat | Part 4.4 (conditional) | Assistant response received |
+| 11 | Fail-closed no-secret-leaves | Part 4.6 | Secret request → upstream receives `[APIKEY_1]`, raw secret absent |
+| 12 | Streaming | Part 4.7 | ≥ 2 `data:` events |
 | 13 | Local TUI | Part 5 | 3 panes render; `/demo 1` shows placeholders |
 | 14 | Web TUI | Part 6 | Browser loads `http://localhost:8080` |
 | 15 | Hardhat compile | `npx hardhat compile` | No errors |
@@ -552,6 +631,8 @@ npx tsx scripts/anchor-envelope.ts
 | 18 | TS bridge connect | Part 8.1 | Latest block printed |
 
 **All pass → Safe Prompt is fully functional for the QoreChain hackathon demo.**
+
+---
 
 ---
 

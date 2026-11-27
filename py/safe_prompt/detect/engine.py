@@ -112,7 +112,7 @@ BUILTIN_RULES: list[Rule] = [
     _r("CARD", r"\b(?:\d[ -]?){13,19}\b", 75, validate=_card_ok),
     _r("SSN", r"\b\d{3}-\d{2}-\d{4}\b", 70, validate=_ssn_ok),
     _r("IBAN", r"\b[A-Z]{2}[0-9]{2}[A-Z0-9 ]{10,30}\b", 65, validate=_iban_ok),
-    _r("PHONE", r"\b\+?\d[\d .()\-]{8,}\d\b", 60, validate=_phone_ok),
+    _r("PHONE", r"(?<![A-Za-z0-9])\+?\d[\d .()\-]{8,}\d(?![A-Za-z0-9])", 60, validate=_phone_ok),
     _r("EMAIL", r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}\b", 55),
     _r("IPADDR", r"\b(?:\d{1,3}\.){3}\d{1,3}\b", 50, validate=_ip_ok),
     _r("PASSWORD", r"(?i)(?:password|passwd|pwd|secret|token|api[_-]?key)[ :='\"]+([^\s,;]+)", 45, group=1),

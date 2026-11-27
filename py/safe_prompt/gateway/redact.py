@@ -14,7 +14,7 @@ import os
 from dataclasses import dataclass, field
 from typing import Any, Callable, Iterable, Optional
 
-from ..detect.engine import Detector, Match
+from ..detect.engine import Detector, Match, PLACEHOLDER_RE
 from ..crypto import SafePromptCrypto
 
 # Structural JSON keys whose string values are never user content.
