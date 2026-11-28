@@ -10,7 +10,7 @@ from typing import Any, AsyncGenerator, Dict, Optional
 
 import httpx
 from fastapi import FastAPI, Header, HTTPException, Request, Response
-from fastapi.responses import StreamingResponse
+from fastapi.responses import HTMLResponse, StreamingResponse
 from pydantic import BaseModel
 
 from ..config import Settings, load_settings

@@ -69,9 +69,7 @@ def _ssn_ok(v: str) -> bool:
 
 def _phone_ok(v: str) -> bool:
     digits = re.sub(r"\D", "", v)
-    return 10 <= len(digits) <= 15 and (
-        v.lstrip().startswith("+") or re.search(r"[\s.()\-]", v) is not None
-    )
+    return 10 <= len(digits) <= 15
 
 
 def _ip_ok(v: str) -> bool:

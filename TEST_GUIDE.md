@@ -130,6 +130,7 @@ tests = [
     ('API key', 'My API key is sk-proj-Q8x2LmN4vB7cR1tY9uZ3aW5eD6fG0hJk'),
     ('Card',      'Credit card: 4111 1111 1111 1111'),
     ('Email+Phone','Email: test@example.com, Phone: +1234567890'),
+    ('Bare Phone','I bought a car with my phone 1234556666. send my invoice to my email a@b.com'),
     ('DB URL',    'DATABASE_URL=postgres://admin:pass@localhost:5432/db'),
     ('JWT',       'JWT: eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dozjgNryP4J3jVmNHl0w5N'),
 ]
